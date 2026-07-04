@@ -9,7 +9,7 @@ Sequences the modern Vercel surface into one ship-a-Next.js-app workflow rather 
 ## Install
 
 - **From the catalog:** [skillme.dev/pack/vercel-platform](https://skillme.dev/pack/vercel-platform) — install the whole pack into Claude in one step.
-- **With the skills CLI:** `npx skills add aouellets/vercel-platform`
+- **With the skills CLI:** `npx skills add SkillMedev/vercel-platform`
 - **Manually:** copy any `skills/<slug>/SKILL.md` into your Claude skills directory.
 
 ## Skills in this pack
