@@ -16,8 +16,8 @@ and they are not interchangeable:
   deny a request before it bills compute. Configure it once per project.
 - **BotID** is invisible, per-route bot verification you call from server code on
   the specific endpoints that get abused (checkout, signup, login, "add to cart",
-  LLM-backed routes). It is a JS challenge plus deep analysis, GA since June 2025,
-  and it does not show a CAPTCHA to humans.
+  LLM-backed routes). It is a JS challenge plus deep analysis, and it does not
+  show a CAPTCHA to humans.
 
 Use both, in that order: the WAF is the blanket, BotID is the lock on the doors
 that matter. This skill is opinionated and sequenced; it is deliberately **not** a
@@ -66,9 +66,10 @@ never needs application code to stop.
 Turn on the Vercel-managed rulesets before writing any custom rule. In the
 dashboard (Project → Firewall) or via SDK, enable and set actions:
 
-- **OWASP CRS** (`owasp`): start at `log` for a few days to learn its false
-  positives against your real traffic, then move to `deny`. Going straight to
-  `deny` on a busy app risks blocking legitimate requests you have not profiled.
+- **OWASP CRS** (`owasp`): start at `log` and soak for 3–7 days of representative
+  traffic (long enough to cover a weekly cycle of real usage) to learn its false
+  positives, then move to `deny`. Going straight to `deny` on a busy app risks
+  blocking legitimate requests you have not profiled.
 - **bot_protection**: `challenge` or `deny` for known malicious bots.
 - **ai_bots**: decide deliberately — `deny` if you do not want LLM crawlers
   training on or scraping your content; `log` if you are fine with it.
@@ -161,7 +162,12 @@ export async function POST(request: Request) {
 
 Rule of thumb: key on IP for anonymous routes, on a stable identity (user/org) for
 authenticated ones — IP keys punish whole offices and mobile carriers sharing a
-NAT. See `references/rate-limiting`.
+NAT. Starting budgets that hold up in practice: ~100 requests/60s per IP for a
+general anonymous API, ~10 requests/60s per IP on login and password-reset (brute
+force has no legitimate reason to exceed that), and single-digit requests per
+minute per user on expensive mutating routes like checkout or LLM calls. Set the
+budget from your p99 legitimate usage plus headroom, then tighten from the logs.
+See `references/rate-limiting`.
 
 ### Step 5 — Add a system bypass for trusted callers
 
@@ -251,9 +257,11 @@ bots through. Use `checkLevel: 'deepAnalysis'` for the highest-value routes and
 ### Step 8 — Verify, then audit
 
 Run the checklist tool below to confirm coverage, then watch the Firewall
-observability tab for a few days: rulesets at `log` reveal what `deny` would
-have blocked, and BotID's dashboard shows the human/bot split per protected route.
-Promote `log` → `deny` only after the log is clean.
+observability tab through the soak window (3–7 days): rulesets at `log` reveal
+what `deny` would have blocked, and BotID's dashboard shows the human/bot split
+per protected route. Promote `log` → `deny` only after the log is clean — as a
+working bar, a false-positive rate visibly above ~0.1% of legitimate traffic in
+the log means the rule needs narrowing before it denies.
 
 ## Quality bar
 
@@ -312,7 +320,7 @@ const posture = {
   rateLimitedApiPaths: true,    // is /api (or hot paths) rate limited at all?
   authRoutesKeyedByIdentity: false, // auth'd rate limits key on user/org (not IP)?
   bypassAboveDeny: true,        // do allow/bypass rules sit above deny rules?
-  attackModeOn: false,          // is Attack Challenge Mode currently enabled?
+  attackModeOn: false,          // is Attack Challenge Mode enabled right now?
   incidentOpen: false,          // is there an active attack right now?
   // Routes that mutate money/accounts/credits, and whether BotID guards each.
   criticalRoutes: [
@@ -515,7 +523,7 @@ Two non-negotiables:
 
 ## references/botid
 
-BotID (GA June 2025) is invisible bot verification you call per route. It runs a
+BotID is invisible bot verification you call per route. It runs a
 client-side JS challenge plus server-side deep analysis and returns a verdict —
 no CAPTCHA shown to humans. It catches sophisticated automation (headless
 browsers, scripted clients) that the WAF cannot fingerprint by request shape

@@ -95,6 +95,11 @@ printf '%s' "$VALUE" | vercel env add API_TOKEN production --sensitive
 vercel env add API_TOKEN production --force      # replace existing value
 ```
 
+Mind the budget: Vercel caps the combined size of all env vars at 64 KB per
+deployment (Edge-runtime consumers are tighter, around 5 KB per variable). If you
+are pushing against that, the fix is fewer/leaner vars — move big blobs of config
+into Edge Config or a store, not into the environment.
+
 After adding or changing a var, **re-pull** so your local cache matches:
 `vercel env pull`.
 
@@ -116,10 +121,12 @@ Do not put a long-lived AWS/GCP/Azure key in an env var if you can avoid it. Wit
 **Secure Backend Access** enabled, Vercel issues a short-lived `VERCEL_OIDC_TOKEN`
 (present at build time and as a request header at runtime) that you exchange for
 temporary cloud credentials. Nothing long-lived is stored, and tokens rotate
-automatically. As of 2026 this is the recommended pattern for talking to a cloud
-provider from a Vercel Function.
+automatically. This is the recommended pattern for talking to a cloud provider
+from a Vercel Function.
 
-Pull the token for local dev like any other dev var:
+Pull the token for local dev like any other dev var. Note it is short-lived by
+design — a locally pulled `VERCEL_OIDC_TOKEN` is valid for about 12 hours, so a
+morning `vercel env pull` is part of the routine, not a one-time setup:
 
 ```bash
 vercel link
@@ -142,7 +149,7 @@ const s3 = new S3Client({
 });
 ```
 
-(As of 2026 the AWS provider lives in `@vercel/oidc-aws-credentials-provider` —
+(The AWS provider lives in `@vercel/oidc-aws-credentials-provider` —
 `npm i @aws-sdk/client-s3 @vercel/oidc-aws-credentials-provider`. The older
 `@vercel/functions/oidc` import has been moved out.)
 

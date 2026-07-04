@@ -1,6 +1,6 @@
 ---
 name: Vercel Rendering and Caching
-description: Choose a rendering, runtime, and caching strategy on Vercel as of 2026 — Fluid Compute as the default runtime (Edge Functions are deprecated), ISR/PPR, Next.js 16 Cache Components ('use cache', cacheLife, cacheTag, updateTag, revalidateTag), and the Vercel Runtime Cache API (getCache, expireTag, invalidateByTag) with tag-based invalidation. Use when deciding "static or dynamic", "should this be edge or node", "how do I do ISR", "revalidate on demand", "why is my page stale", "cache an API response across regions", "streaming vs PPR", "migrate off unstable_cache", or "runtime cache invalidation". Do NOT use to set env vars (use vercel-env-management), wire git/preview/promote deploys (use vercel-deploy-pipeline), route LLM calls (use vercel-ai-gateway), or block bots/rate-limit (use vercel-firewall-and-botid). For pure Core-Web-Vitals/bundle tuning, hand to next-on-vercel-perf.
+description: Choose a rendering, runtime, and caching strategy on Vercel — Fluid Compute as the default runtime (Edge Functions are deprecated), ISR/PPR, Next.js 16 Cache Components ('use cache', cacheLife, cacheTag, updateTag, revalidateTag), and the Vercel Runtime Cache API (getCache, expireTag, invalidateByTag) with tag-based invalidation. Use when deciding "static or dynamic", "should this be edge or node", "how do I do ISR", "revalidate on demand", "why is my page stale", "cache an API response across regions", "streaming vs PPR", "migrate off unstable_cache", or "runtime cache invalidation". Do NOT use to set env vars (use vercel-env-management), wire git/preview/promote deploys (use vercel-deploy-pipeline), route LLM calls (use vercel-ai-gateway), or block bots/rate-limit (use vercel-firewall-and-botid). For pure Core-Web-Vitals/bundle tuning, hand to next-on-vercel-perf.
 ---
 
 # Vercel Rendering and Caching
@@ -13,11 +13,11 @@ deliberate instead of accidental. Wrong defaults here are the difference between
 site that serves from cache in single-digit milliseconds and one that re-runs a
 function on every request and still serves stale data.
 
-The single most common mistake in 2026 is carrying forward 2023-era advice. Two
-defaults flipped: **Edge Functions are deprecated** — Fluid Compute (full Node.js)
-is the default runtime — and **`unstable_cache` is replaced** by Next.js 16 Cache
-Components. This skill encodes the current defaults; correct any older instinct
-against it.
+The single most common mistake is carrying forward advice from the platform's
+earlier era. Two defaults flipped: **Edge Functions are deprecated** — Fluid
+Compute (full Node.js) is the default runtime — and **`unstable_cache` is
+replaced** by Next.js 16 Cache Components. This skill encodes the platform
+defaults; correct any older instinct against it.
 
 ## Workflow
 
@@ -26,13 +26,13 @@ before reaching for the imperative cache — most routes never need step 4.
 
 ### Step 1 — Pick the runtime: Fluid Compute (Node.js), not Edge
 
-Default every function and your middleware to **Fluid Compute on Node.js**. As of
-2026 this is the platform default and Edge Functions are deprecated — do not reach
-for `export const runtime = 'edge'`.
+Default every function and your middleware to **Fluid Compute on Node.js**. This
+is the platform default and Edge Functions are deprecated — do not reach for
+`export const runtime = 'edge'`.
 
 What Fluid Compute gives you, and why the old Edge tradeoff is gone:
 
-- **Full Node.js** (current default is Node.js 24 LTS; 18 is deprecated). The whole
+- **Full Node.js** (the default is Node.js 24 LTS; 18 is deprecated). The whole
   npm ecosystem, native modules, and full Web APIs — no Edge runtime subset to
   fight.
 - **Reduced cold starts via instance reuse.** A warm instance serves multiple
@@ -46,7 +46,7 @@ What Fluid Compute gives you, and why the old Edge tradeoff is gone:
   work fits without plan gymnastics.
 - **Middleware runs full Node.js**, so interception logic can use real Node APIs.
 
-Enable it in `vercel.ts` (recommended in 2026; `vercel.json` still works):
+Enable it in `vercel.ts` (the recommended config surface; `vercel.json` still works):
 
 ```typescript
 // vercel.ts — import from '@vercel/config'
@@ -77,7 +77,12 @@ dynamism only where the content actually demands it.
   schedule or on demand**. The right default for content that changes but not
   per-request: blogs, product pages, catalogs. Works on Next.js, SvelteKit, Nuxt,
   and Astro. The first request after the window serves stale and regenerates in the
-  background (stale-while-revalidate), so users never wait on a rebuild.
+  background (stale-while-revalidate), so users never wait on a rebuild. Pick the
+  window from editorial expectations, not superstition: content that must reflect
+  edits within a minute gets `revalidate: 60` plus tag-based invalidation; a
+  product catalog updated a few times a day is fine at 3600; near-static pages can
+  take 86400. Anything below ~10s means the function runs nearly per-request —
+  at that point be honest and go dynamic (or PPR).
 - **Streaming** — dynamic, but flush the shell immediately and stream slow parts in
   with `<Suspense>`. Use when the page is personalized or live but you still want a
   fast first paint. Fluid Compute's long timeout and instance reuse make streaming
@@ -231,8 +236,8 @@ A rendering-and-caching plan is done only when all hold:
 ## Do NOT
 
 - **Do NOT default to `export const runtime = 'edge'`.** Edge Functions are
-  deprecated as of 2026; Fluid Compute on Node.js is the default and removes the
-  cold-start reason people fled to Edge.
+  deprecated; Fluid Compute on Node.js is the default and removes the cold-start
+  reason people fled to Edge.
 - **Do NOT target Node.js 18** or assume a short timeout. The default runtime is
   Node.js 24 LTS and the default function timeout is 300s on all plans.
 - **Do NOT reach for `unstable_cache` or a hand-rolled module-level Map.** Use Cache
@@ -385,8 +390,8 @@ DEFERRALS
 
 The two decisions are independent but both default toward *less work on the request
 path*. Runtime is *where code runs when it runs*; render mode is *whether code runs
-at all per request*. In 2026 the runtime default is Fluid Compute on Node.js — full
-Node, instance reuse to cut cold starts, same regions and price band, Active-CPU
+at all per request*. The runtime default is Fluid Compute on Node.js — full Node,
+instance reuse to cut cold starts, same regions and price band, Active-CPU
 billing, and a 300s default timeout — and Edge Functions are deprecated. So the
 render mode carries the performance weight: a fully static or ISR route serves from
 the Edge Network and the function never executes per request, which beats any
